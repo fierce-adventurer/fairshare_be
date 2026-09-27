@@ -108,7 +108,20 @@ public class AuthController {
 
     @GetMapping("/oauth/google/callback")
     @Operation(summary = "Google OAuth2 callback (redirects to frontend with tokens)")
-    public RedirectView handleGoogleCallback(@RequestParam String code) {
+    public RedirectView handleGoogleCallback(
+            @RequestParam(required = false) String code,
+            @RequestParam(required = false) String error,
+            @RequestParam(name = "error_description", required = false) String errorDescription
+    ) {
+        if (error != null) {
+            String msg = errorDescription != null && !errorDescription.isBlank() ? errorDescription : error;
+            String errorRedirect = String.format("%s/auth/callback?error=%s", frontendUrl, URLEncoder.encode(msg, StandardCharsets.UTF_8));
+            return new RedirectView(errorRedirect);
+        }
+        if (code == null || code.isBlank()) {
+            String errorRedirect = String.format("%s/auth/callback?error=%s", frontendUrl, URLEncoder.encode("Missing authorization code", StandardCharsets.UTF_8));
+            return new RedirectView(errorRedirect);
+        }
         try {
             AuthResponse response = authService.handleGoogleCallback(code);
             String redirectTarget = String.format(
@@ -138,7 +151,20 @@ public class AuthController {
 
     @GetMapping("/oauth/github/callback")
     @Operation(summary = "GitHub OAuth2 callback (redirects to frontend with tokens)")
-    public RedirectView handleGitHubCallback(@RequestParam String code) {
+    public RedirectView handleGitHubCallback(
+            @RequestParam(required = false) String code,
+            @RequestParam(required = false) String error,
+            @RequestParam(name = "error_description", required = false) String errorDescription
+    ) {
+        if (error != null) {
+            String msg = errorDescription != null && !errorDescription.isBlank() ? errorDescription : error;
+            String errorRedirect = String.format("%s/auth/callback?error=%s", frontendUrl, URLEncoder.encode(msg, StandardCharsets.UTF_8));
+            return new RedirectView(errorRedirect);
+        }
+        if (code == null || code.isBlank()) {
+            String errorRedirect = String.format("%s/auth/callback?error=%s", frontendUrl, URLEncoder.encode("Missing authorization code", StandardCharsets.UTF_8));
+            return new RedirectView(errorRedirect);
+        }
         try {
             AuthResponse response = authService.handleGithubCallback(code);
             String redirectTarget = String.format(

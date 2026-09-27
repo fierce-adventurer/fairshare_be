@@ -3,6 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      network: host
     container_name: fairshare-api
     ports:
       - "8080:8080"
