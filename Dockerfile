@@ -4,11 +4,11 @@ WORKDIR /app
 
 # Cache dependencies
 COPY pom.xml .
-RUN printf "nameserver 8.8.8.8\nnameserver 1.1.1.1\n" > /etc/resolv.conf && mvn dependency:go-offline -B
+RUN mvn dependency:go-offline -B
 
 # Copy sources and build package
 COPY src ./src
-RUN printf "nameserver 8.8.8.8\nnameserver 1.1.1.1\n" > /etc/resolv.conf && mvn clean package -DskipTests -B
+RUN mvn clean package -DskipTests -B
 
 # Extract Spring Boot layers for fast Docker startup and caching
 RUN java -Djarmode=layertools -jar target/fairshare-backend-0.0.1-SNAPSHOT.jar extract
