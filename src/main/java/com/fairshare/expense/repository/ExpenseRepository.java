@@ -19,4 +19,7 @@ public interface ExpenseRepository extends JpaRepository<Expense, UUID> {
     List<Expense> findAllForUser(@Param("userId") UUID userId);
 
     Optional<Expense> findByGroupIdAndIdempotencyKey(UUID groupId, String idempotencyKey);
+
+    @Query("SELECT COALESCE(SUM(e.amountMinor), 0) FROM Expense e WHERE e.deletedAt IS NULL")
+    long sumActiveAmountMinor();
 }

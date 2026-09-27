@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class UpcomingBillService {
@@ -57,7 +58,20 @@ public class UpcomingBillService {
     @Transactional(readOnly = true)
     public List<BillResponse> listUserBills(UUID userId) {
         List<UpcomingBill> bills = billRepository.findByAssignedUserId(userId);
-        return bills.stream().map(this::toResponse).toList();
+        if (bills.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<UUID> billIds = bills.stream().map(UpcomingBill::getId).toList();
+        Map<UUID, List<UUID>> assigneesByBillId = assigneeRepository.findByBillIdIn(billIds).stream()
+                .collect(Collectors.groupingBy(
+                        BillAssignee::getBillId,
+                        Collectors.mapping(BillAssignee::getUserId, Collectors.toList())
+                ));
+
+        return bills.stream()
+                .map(b -> BillResponse.from(b, assigneesByBillId.getOrDefault(b.getId(), Collections.emptyList())))
+                .toList();
     }
 
     @Transactional

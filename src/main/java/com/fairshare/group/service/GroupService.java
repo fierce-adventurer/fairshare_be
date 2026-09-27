@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class GroupService {
@@ -73,14 +74,20 @@ public class GroupService {
     @Transactional(readOnly = true)
     public List<GroupResponse> listUserGroups(UUID userId) {
         List<Group> groups = groupRepository.findByMemberUserId(userId);
-        List<GroupResponse> responses = new ArrayList<>();
-        for (Group group : groups) {
-            List<UUID> memberIds = memberRepository.findByGroupId(group.getId()).stream()
-                    .map(GroupMember::getUserId)
-                    .toList();
-            responses.add(GroupResponse.from(group, memberIds));
+        if (groups.isEmpty()) {
+            return Collections.emptyList();
         }
-        return responses;
+
+        List<UUID> groupIds = groups.stream().map(Group::getId).toList();
+        Map<UUID, List<UUID>> membersByGroupId = memberRepository.findByGroupIdIn(groupIds).stream()
+                .collect(Collectors.groupingBy(
+                        GroupMember::getGroupId,
+                        Collectors.mapping(GroupMember::getUserId, Collectors.toList())
+                ));
+
+        return groups.stream()
+                .map(g -> GroupResponse.from(g, membersByGroupId.getOrDefault(g.getId(), Collections.emptyList())))
+                .toList();
     }
 
     @Transactional(readOnly = true)

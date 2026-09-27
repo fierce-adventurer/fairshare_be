@@ -11,5 +11,6 @@ import java.util.UUID;
 @Repository
 public interface BillAssigneeRepository extends JpaRepository<BillAssignee, BillAssigneeId> {
     List<BillAssignee> findByBillId(UUID billId);
+    List<BillAssignee> findByBillIdIn(List<UUID> billIds);
     void deleteByBillId(UUID billId);
 }

@@ -3,16 +3,15 @@ package com.fairshare.admin.service;
 import com.fairshare.admin.dto.DashboardStatsResponse;
 import com.fairshare.admin.dto.RumMetricRequest;
 import com.fairshare.billing.repository.UpcomingBillRepository;
-import com.fairshare.expense.model.Expense;
 import com.fairshare.expense.repository.ExpenseRepository;
 import com.fairshare.group.repository.GroupRepository;
 import com.fairshare.payment.repository.PaymentRepository;
 import com.fairshare.request.repository.MoneyRequestRepository;
-import com.fairshare.user.model.User;
 import com.fairshare.user.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
@@ -58,16 +57,16 @@ public class RumAnalyticsService {
         long totalExpenses = expenseRepository.count();
         long totalPayments = paymentRepository.count();
 
-        long totalAmountMinor = expenseRepository.findAll().stream()
-                .filter(e -> e.getDeletedAt() == null)
-                .mapToLong(Expense::getAmountMinor)
-                .sum();
+        long totalAmountMinor = expenseRepository.sumActiveAmountMinor();
 
-        Map<String, Long> onboardingDistribution = userRepository.findAll().stream()
-                .collect(Collectors.groupingBy(
-                        u -> u.getOnboardingStep() != null ? u.getOnboardingStep() : "welcome",
-                        Collectors.counting()
-                ));
+        Map<String, Long> onboardingDistribution = new HashMap<>();
+        for (Object[] row : userRepository.countUsersByOnboardingStep()) {
+            if (row != null && row.length >= 2) {
+                String step = row[0] != null ? row[0].toString() : "welcome";
+                long count = row[1] instanceof Number ? ((Number) row[1]).longValue() : 0L;
+                onboardingDistribution.put(step, count);
+            }
+        }
 
         Map<String, Long> rumStats = rumEventCounters.entrySet().stream()
                 .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().get()));

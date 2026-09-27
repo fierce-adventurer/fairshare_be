@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class ExpenseService {
@@ -76,13 +77,13 @@ public class ExpenseService {
     public List<ExpenseResponse> listGroupExpenses(UUID userId, UUID groupId) {
         groupService.assertMembership(userId, groupId);
         List<Expense> expenses = expenseRepository.findByGroupIdAndDeletedAtIsNullOrderByOccurredAtDesc(groupId);
-        return expenses.stream().map(this::getExpenseResponse).toList();
+        return toExpenseResponses(expenses);
     }
 
     @Transactional(readOnly = true)
     public List<ExpenseResponse> listAllUserExpenses(UUID userId) {
         List<Expense> expenses = expenseRepository.findAllForUser(userId);
-        return expenses.stream().map(this::getExpenseResponse).toList();
+        return toExpenseResponses(expenses);
     }
 
     @Transactional(readOnly = true)
@@ -143,6 +144,30 @@ public class ExpenseService {
             allocations.add(new ExpenseAllocation(expenseId, share.userId(), AllocationType.SHARER, share.amountMinor()));
         }
         allocationRepository.saveAll(allocations);
+    }
+
+    private List<ExpenseResponse> toExpenseResponses(List<Expense> expenses) {
+        if (expenses.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<UUID> expenseIds = expenses.stream().map(Expense::getId).toList();
+        List<ExpenseAllocation> allAllocations = allocationRepository.findByExpenseIdIn(expenseIds);
+        Map<UUID, List<ExpenseAllocation>> allocationsByExpenseId = allAllocations.stream()
+                .collect(Collectors.groupingBy(ExpenseAllocation::getExpenseId));
+
+        return expenses.stream().map(expense -> {
+            List<ExpenseAllocation> allocations = allocationsByExpenseId.getOrDefault(expense.getId(), Collections.emptyList());
+            List<AllocationDto> payers = allocations.stream()
+                    .filter(a -> a.getType() == AllocationType.PAYER)
+                    .map(a -> new AllocationDto(a.getUserId(), a.getAmountMinor()))
+                    .toList();
+            List<AllocationDto> shares = allocations.stream()
+                    .filter(a -> a.getType() == AllocationType.SHARER)
+                    .map(a -> new AllocationDto(a.getUserId(), a.getAmountMinor()))
+                    .toList();
+            return ExpenseResponse.from(expense, payers, shares);
+        }).toList();
     }
 
     private ExpenseResponse getExpenseResponse(Expense expense) {
