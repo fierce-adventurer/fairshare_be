@@ -58,6 +58,11 @@ jobs:
     environment:
       name: production
     steps:
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v3
+        with:
+          authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
+
       - name: Deploy over SSH
         uses: appleboy/ssh-action@v1.0.3
         env:
@@ -75,22 +80,25 @@ jobs:
             IMAGE="${IMAGE_REPO}:${IMAGE_TAG}"
             CANDIDATE_CONTAINER="fairshare-api-candidate"
             LIVE_CONTAINER="fairshare-api"
-            ENV_FILE="/opt/fairshare/.env"
+            ENV_FILE="/home/a/fairshare/.env"
 
             docker login ghcr.io -u "${{ secrets.GHCR_USERNAME }}" -p "${{ secrets.GHCR_PULL_TOKEN }}"
             docker pull "${IMAGE}"
 
+            docker network create fairshare-net >/dev/null 2>&1 || true
+
             docker rm -f "${CANDIDATE_CONTAINER}" >/dev/null 2>&1 || true
             docker run -d \
               --name "${CANDIDATE_CONTAINER}" \
+              --network fairshare-net \
               --env-file "${ENV_FILE}" \
               --restart unless-stopped \
-              -p 18080:8080 \
+              -p 18085:8080 \
               "${IMAGE}"
 
             HEALTHY=false
             for attempt in $(seq 1 30); do
-              if curl -fsS "http://localhost:18080/actuator/health" >/dev/null; then
+              if curl -fsS "http://localhost:18085/actuator/health" >/dev/null; then
                 HEALTHY=true
                 break
               fi
@@ -107,18 +115,19 @@ jobs:
             docker rm -f "${LIVE_CONTAINER}" >/dev/null 2>&1 || true
             docker run -d \
               --name "${LIVE_CONTAINER}" \
+              --network fairshare-net \
               --env-file "${ENV_FILE}" \
               --restart unless-stopped \
-              -p 8080:8080 \
+              -p 8085:8080 \
               "${IMAGE}"
 
             for attempt in $(seq 1 30); do
-              if curl -fsS "http://localhost:8080/actuator/health" >/dev/null; then
+              if curl -fsS "http://localhost:8085/actuator/health" >/dev/null; then
                 break
               fi
               sleep 3
             done
 
-            curl -fsS "http://localhost:8080/actuator/health" >/dev/null
+            curl -fsS "http://localhost:8085/actuator/health" >/dev/null
             docker rm -f "${CANDIDATE_CONTAINER}" >/dev/null 2>&1 || true
             docker image prune -f >/dev/null 2>&1 || true
