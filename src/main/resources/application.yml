@@ -56,7 +56,7 @@ app:
       redirect-uri: ${GITHUB_REDIRECT_URI:http://localhost:8080/api/v1/auth/oauth/github/callback}
   frontend-url: ${FRONTEND_URL:http://localhost:5173}
   cors:
-    allowed-origins: ${CORS_ORIGINS:http://localhost:5173,http://127.0.0.1:5173}
+    allowed-origins: ${CORS_ORIGINS:http://localhost:5173,http://127.0.0.1:5173,https://localhost,capacitor://localhost,http://localhost}
 
 management:
   endpoints:
