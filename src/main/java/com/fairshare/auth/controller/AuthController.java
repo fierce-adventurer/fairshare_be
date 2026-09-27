@@ -6,6 +6,7 @@ import com.fairshare.auth.dto.RefreshRequest;
 import com.fairshare.auth.dto.RegisterRequest;
 import com.fairshare.auth.dto.SendOtpRequest;
 import com.fairshare.auth.dto.VerifyOtpRequest;
+import com.fairshare.auth.oauth.GitHubOAuth2Handler;
 import com.fairshare.auth.oauth.GoogleOAuth2Handler;
 import com.fairshare.auth.service.AuthService;
 import com.fairshare.auth.service.OtpService;
@@ -31,17 +32,20 @@ public class AuthController {
 
     private final AuthService authService;
     private final GoogleOAuth2Handler googleOAuth2Handler;
+    private final GitHubOAuth2Handler gitHubOAuth2Handler;
     private final OtpService otpService;
     private final String frontendUrl;
 
     public AuthController(
             AuthService authService,
             GoogleOAuth2Handler googleOAuth2Handler,
+            GitHubOAuth2Handler gitHubOAuth2Handler,
             OtpService otpService,
             @Value("${app.frontend-url:http://localhost:5173}") String frontendUrl
     ) {
         this.authService = authService;
         this.googleOAuth2Handler = googleOAuth2Handler;
+        this.gitHubOAuth2Handler = gitHubOAuth2Handler;
         this.otpService = otpService;
         this.frontendUrl = frontendUrl;
     }
@@ -107,6 +111,36 @@ public class AuthController {
     public RedirectView handleGoogleCallback(@RequestParam String code) {
         try {
             AuthResponse response = authService.handleGoogleCallback(code);
+            String redirectTarget = String.format(
+                    "%s/auth/callback?access_token=%s&refresh_token=%s",
+                    frontendUrl,
+                    URLEncoder.encode(response.accessToken(), StandardCharsets.UTF_8),
+                    URLEncoder.encode(response.refreshToken(), StandardCharsets.UTF_8)
+            );
+            return new RedirectView(redirectTarget);
+        } catch (Exception e) {
+            String errorRedirect = String.format(
+                    "%s/auth/callback?error=%s",
+                    frontendUrl,
+                    URLEncoder.encode(e.getMessage(), StandardCharsets.UTF_8)
+            );
+            return new RedirectView(errorRedirect);
+        }
+    }
+
+    @GetMapping("/oauth/github")
+    @Operation(summary = "Initiate GitHub OAuth2 flow (redirects to GitHub)")
+    public RedirectView initiateGitHubOAuth() {
+        String state = UUID.randomUUID().toString();
+        String authorizeUrl = gitHubOAuth2Handler.buildAuthorizeUrl(state);
+        return new RedirectView(authorizeUrl);
+    }
+
+    @GetMapping("/oauth/github/callback")
+    @Operation(summary = "GitHub OAuth2 callback (redirects to frontend with tokens)")
+    public RedirectView handleGitHubCallback(@RequestParam String code) {
+        try {
+            AuthResponse response = authService.handleGithubCallback(code);
             String redirectTarget = String.format(
                     "%s/auth/callback?access_token=%s&refresh_token=%s",
                     frontendUrl,

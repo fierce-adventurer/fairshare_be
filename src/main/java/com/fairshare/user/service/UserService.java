@@ -1,5 +1,6 @@
 package com.fairshare.user.service;
 
+import com.fairshare.shared.exception.BadRequestException;
 import com.fairshare.shared.exception.ResourceNotFoundException;
 import com.fairshare.user.dto.UpdateProfileRequest;
 import com.fairshare.user.dto.UserProfileResponse;
@@ -34,7 +35,15 @@ public class UserService {
             user.setInitials(User.computeInitials(request.name().trim()));
         }
         if (request.phone() != null) {
-            user.setPhone(request.phone().trim());
+            String trimmedPhone = request.phone().trim();
+            if (!trimmedPhone.isBlank() && !trimmedPhone.equals(user.getPhone())) {
+                userRepository.findByPhone(trimmedPhone).ifPresent(existing -> {
+                    if (!existing.getId().equals(user.getId())) {
+                        throw new BadRequestException("Phone number " + trimmedPhone + " is already linked to another account.");
+                    }
+                });
+            }
+            user.setPhone(trimmedPhone.isBlank() ? null : trimmedPhone);
         }
         if (request.avatarUrl() != null) {
             user.setAvatarUrl(request.avatarUrl().trim());

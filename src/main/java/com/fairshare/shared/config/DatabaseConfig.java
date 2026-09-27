@@ -82,7 +82,7 @@ public class DatabaseConfig {
             hikariConfig.setDriverClassName(driverClassName);
         }
 
-        // Connection pool defaults suitable for low RAM and container memory limits
+        // Connection pool defaults tuned for low RAM, container limits, and Neon serverless
         int maxPool = 5;
         try {
             String poolEnv = System.getenv("DB_POOL_MAX_SIZE");
@@ -93,8 +93,10 @@ public class DatabaseConfig {
         hikariConfig.setMaximumPoolSize(maxPool);
         hikariConfig.setMinimumIdle(1);
         hikariConfig.setConnectionTimeout(20000);
-        hikariConfig.setIdleTimeout(300000);
-        hikariConfig.setMaxLifetime(1200000);
+        hikariConfig.setIdleTimeout(60000); // 1 minute
+        hikariConfig.setMaxLifetime(300000); // 5 minutes (prevents stale connection warnings with Neon pooler)
+        hikariConfig.setKeepaliveTime(30000); // 30s keepalive ping to prevent idle connection closure
+        hikariConfig.setConnectionTestQuery("SELECT 1");
 
         return new HikariDataSource(hikariConfig);
     }

@@ -52,6 +52,20 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(errors));
     }
 
+    @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleDataIntegrityViolation(org.springframework.dao.DataIntegrityViolationException ex) {
+        String msg = "Database integrity violation";
+        String rootMsg = ex.getRootCause() != null ? ex.getRootCause().getMessage() : ex.getMessage();
+        if (rootMsg != null) {
+            if (rootMsg.contains("users_phone_key")) {
+                msg = "This phone number is already registered with another account.";
+            } else if (rootMsg.contains("users_email_key")) {
+                msg = "This email is already registered with another account.";
+            }
+        }
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(ApiResponse.error(msg));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleGeneralException(Exception ex) {
         log.error("Unhandled exception", ex);

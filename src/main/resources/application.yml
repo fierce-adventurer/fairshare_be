@@ -8,6 +8,14 @@ spring:
     username: ${DATABASE_USERNAME:fairshare}
     password: ${DATABASE_PASSWORD:fairshare_dev}
     driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 1
+      connection-timeout: 20000
+      idle-timeout: 60000
+      max-lifetime: 300000
+      keepalive-time: 30000
+      connection-test-query: SELECT 1
   jpa:
     hibernate:
       ddl-auto: validate
@@ -42,6 +50,10 @@ app:
       client-id: ${GOOGLE_CLIENT_ID:}
       client-secret: ${GOOGLE_CLIENT_SECRET:}
       redirect-uri: ${GOOGLE_REDIRECT_URI:http://localhost:8080/api/v1/auth/oauth/google/callback}
+    github:
+      client-id: ${GITHUB_CLIENT_ID:}
+      client-secret: ${GITHUB_CLIENT_SECRET:}
+      redirect-uri: ${GITHUB_REDIRECT_URI:http://localhost:8080/api/v1/auth/oauth/github/callback}
   frontend-url: ${FRONTEND_URL:http://localhost:5173}
   cors:
     allowed-origins: ${CORS_ORIGINS:http://localhost:5173,http://127.0.0.1:5173}

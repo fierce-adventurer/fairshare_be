@@ -3,6 +3,7 @@ package com.fairshare.auth.service;
 import com.fairshare.auth.dto.AuthResponse;
 import com.fairshare.auth.dto.LoginRequest;
 import com.fairshare.auth.dto.RegisterRequest;
+import com.fairshare.auth.oauth.GitHubOAuth2Handler;
 import com.fairshare.auth.oauth.GoogleOAuth2Handler;
 import com.fairshare.shared.exception.BadRequestException;
 import com.fairshare.shared.exception.UnauthorizedException;
@@ -37,6 +38,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final GoogleOAuth2Handler googleOAuth2Handler;
+    private final GitHubOAuth2Handler gitHubOAuth2Handler;
 
     @Autowired(required = false)
     private RedisTemplate<String, String> redisTemplate;
@@ -49,13 +51,15 @@ public class AuthService {
             UserIdentityRepository identityRepository,
             PasswordEncoder passwordEncoder,
             JwtTokenProvider jwtTokenProvider,
-            GoogleOAuth2Handler googleOAuth2Handler
+            GoogleOAuth2Handler googleOAuth2Handler,
+            GitHubOAuth2Handler gitHubOAuth2Handler
     ) {
         this.userRepository = userRepository;
         this.identityRepository = identityRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtTokenProvider = jwtTokenProvider;
         this.googleOAuth2Handler = googleOAuth2Handler;
+        this.gitHubOAuth2Handler = gitHubOAuth2Handler;
     }
 
     @Transactional
@@ -128,6 +132,44 @@ public class AuthService {
             }
 
             UserIdentity identity = new UserIdentity(user.getId(), "google", googleSub, email);
+            identityRepository.save(identity);
+        }
+
+        return generateAuthResponse(user);
+    }
+
+    @Transactional
+    public AuthResponse handleGithubCallback(String code) {
+        GitHubOAuth2Handler.GitHubUserInfo userInfo = gitHubOAuth2Handler.exchangeCodeForUserInfo(code);
+        String githubId = userInfo.id();
+        String email = userInfo.email() != null ? userInfo.email().trim().toLowerCase() : "";
+
+        // 1. Check if identity already exists
+        Optional<UserIdentity> identityOpt = identityRepository.findByProviderAndProviderUserId("github", githubId);
+        User user;
+
+        if (identityOpt.isPresent()) {
+            user = userRepository.findById(identityOpt.get().getUserId())
+                    .orElseThrow(() -> new UnauthorizedException("Linked user account not found"));
+        } else {
+            // 2. Link by existing email or create new user
+            Optional<User> existingUser = email.isBlank() ? Optional.empty() : userRepository.findByEmail(email);
+            if (existingUser.isPresent()) {
+                user = existingUser.get();
+            } else {
+                user = new User(
+                        UUID.randomUUID(),
+                        email.isBlank() ? githubId + "@github.user" : email,
+                        null,
+                        userInfo.name() != null && !userInfo.name().isBlank() ? userInfo.name() : "GitHub User"
+                );
+                if (userInfo.avatarUrl() != null && !userInfo.avatarUrl().isBlank()) {
+                    user.setAvatarUrl(userInfo.avatarUrl());
+                }
+                user = userRepository.save(user);
+            }
+
+            UserIdentity identity = new UserIdentity(user.getId(), "github", githubId, email);
             identityRepository.save(identity);
         }
 
