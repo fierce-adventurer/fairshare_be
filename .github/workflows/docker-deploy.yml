@@ -1,0 +1,124 @@
+name: Build and Deploy Docker
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build_and_push:
+    name: Build and Push Image
+    runs-on: ubuntu-latest
+    outputs:
+      image_repo: ${{ steps.image_ref.outputs.image_repo }}
+      image_tag: ${{ steps.image_ref.outputs.image_tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute image refs
+        id: image_ref
+        run: |
+          echo "image_repo=${REGISTRY}/${IMAGE_NAME}" >> "$GITHUB_OUTPUT"
+          echo "image_tag=sha-${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ${{ steps.image_ref.outputs.image_repo }}:${{ steps.image_ref.outputs.image_tag }}
+            ${{ steps.image_ref.outputs.image_repo }}:latest
+
+  deploy:
+    name: Deploy Container
+    needs: build_and_push
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          IMAGE_REPO: ${{ needs.build_and_push.outputs.image_repo }}
+          IMAGE_TAG: ${{ needs.build_and_push.outputs.image_tag }}
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_PORT || 22 }}
+          envs: IMAGE_REPO,IMAGE_TAG
+          script: |
+            set -euo pipefail
+
+            IMAGE="${IMAGE_REPO}:${IMAGE_TAG}"
+            CANDIDATE_CONTAINER="fairshare-api-candidate"
+            LIVE_CONTAINER="fairshare-api"
+            ENV_FILE="/opt/fairshare/.env"
+
+            docker login ghcr.io -u "${{ secrets.GHCR_USERNAME }}" -p "${{ secrets.GHCR_PULL_TOKEN }}"
+            docker pull "${IMAGE}"
+
+            docker rm -f "${CANDIDATE_CONTAINER}" >/dev/null 2>&1 || true
+            docker run -d \
+              --name "${CANDIDATE_CONTAINER}" \
+              --env-file "${ENV_FILE}" \
+              --restart unless-stopped \
+              -p 18080:8080 \
+              "${IMAGE}"
+
+            HEALTHY=false
+            for attempt in $(seq 1 30); do
+              if curl -fsS "http://localhost:18080/actuator/health" >/dev/null; then
+                HEALTHY=true
+                break
+              fi
+              sleep 5
+            done
+
+            if [ "${HEALTHY}" != "true" ]; then
+              echo "Candidate container failed health check; keeping current live container."
+              docker logs "${CANDIDATE_CONTAINER}" | tail -n 200 || true
+              docker rm -f "${CANDIDATE_CONTAINER}" >/dev/null 2>&1 || true
+              exit 1
+            fi
+
+            docker rm -f "${LIVE_CONTAINER}" >/dev/null 2>&1 || true
+            docker run -d \
+              --name "${LIVE_CONTAINER}" \
+              --env-file "${ENV_FILE}" \
+              --restart unless-stopped \
+              -p 8080:8080 \
+              "${IMAGE}"
+
+            for attempt in $(seq 1 30); do
+              if curl -fsS "http://localhost:8080/actuator/health" >/dev/null; then
+                break
+              fi
+              sleep 3
+            done
+
+            curl -fsS "http://localhost:8080/actuator/health" >/dev/null
+            docker rm -f "${CANDIDATE_CONTAINER}" >/dev/null 2>&1 || true
+            docker image prune -f >/dev/null 2>&1 || true
