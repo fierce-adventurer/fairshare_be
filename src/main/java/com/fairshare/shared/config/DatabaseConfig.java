@@ -32,7 +32,7 @@ public class DatabaseConfig {
         if (jdbcUrl == null || jdbcUrl.isBlank()) {
             jdbcUrl = "jdbc:postgresql://localhost:5432/fairshare";
         } else if (jdbcUrl.startsWith("postgres://") || jdbcUrl.startsWith("postgresql://")) {
-            // Render / Neon provides URLs in the form: postgresql://user:pass@host:port/dbname?sslmode=require
+            // Standard PostgreSQL URI format: postgresql://user:pass@host:port/dbname?sslmode=require
             try {
                 String httpUrl = jdbcUrl.replaceFirst("^postgres(ql)?://", "http://");
                 URI uri = new URI(httpUrl);
