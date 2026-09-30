@@ -35,19 +35,22 @@ public class AuthController {
     private final GitHubOAuth2Handler gitHubOAuth2Handler;
     private final OtpService otpService;
     private final String frontendUrl;
+    private final String mobileRedirectUri;
 
     public AuthController(
             AuthService authService,
             GoogleOAuth2Handler googleOAuth2Handler,
             GitHubOAuth2Handler gitHubOAuth2Handler,
             OtpService otpService,
-            @Value("${app.frontend-url:http://localhost:5173}") String frontendUrl
+            @Value("${app.frontend-url:http://localhost:5173}") String frontendUrl,
+            @Value("${app.mobile-redirect-uri:com.fairshare.app://auth/callback}") String mobileRedirectUri
     ) {
         this.authService = authService;
         this.googleOAuth2Handler = googleOAuth2Handler;
         this.gitHubOAuth2Handler = gitHubOAuth2Handler;
         this.otpService = otpService;
         this.frontendUrl = frontendUrl;
+        this.mobileRedirectUri = mobileRedirectUri;
     }
 
     @PostMapping("/otp/send")
@@ -98,89 +101,92 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.ok(null, "Logged out successfully"));
     }
 
+    private String resolveBaseCallbackUrl(String state) {
+        if (state != null && state.startsWith("mobile:")) {
+            return mobileRedirectUri;
+        }
+        return String.format("%s/auth/callback", frontendUrl.replaceAll("/+$", ""));
+    }
+
+    private String buildErrorRedirect(String baseCallbackUrl, String message) {
+        String separator = baseCallbackUrl.contains("?") ? "&" : "?";
+        return String.format("%s%serror=%s", baseCallbackUrl, separator, URLEncoder.encode(message, StandardCharsets.UTF_8));
+    }
+
+    private String buildSuccessRedirect(String baseCallbackUrl, AuthResponse response) {
+        String separator = baseCallbackUrl.contains("?") ? "&" : "?";
+        return String.format(
+                "%s%saccess_token=%s&refresh_token=%s",
+                baseCallbackUrl,
+                separator,
+                URLEncoder.encode(response.accessToken(), StandardCharsets.UTF_8),
+                URLEncoder.encode(response.refreshToken(), StandardCharsets.UTF_8)
+        );
+    }
+
     @GetMapping("/oauth/google")
     @Operation(summary = "Initiate Google OAuth2 flow (redirects to Google)")
-    public RedirectView initiateGoogleOAuth() {
-        String state = UUID.randomUUID().toString();
+    public RedirectView initiateGoogleOAuth(@RequestParam(required = false) String platform) {
+        String statePrefix = "mobile".equalsIgnoreCase(platform) ? "mobile:" : "web:";
+        String state = statePrefix + UUID.randomUUID();
         String authorizeUrl = googleOAuth2Handler.buildAuthorizeUrl(state);
         return new RedirectView(authorizeUrl);
     }
 
     @GetMapping("/oauth/google/callback")
-    @Operation(summary = "Google OAuth2 callback (redirects to frontend with tokens)")
+    @Operation(summary = "Google OAuth2 callback (redirects to frontend or mobile app with tokens)")
     public RedirectView handleGoogleCallback(
             @RequestParam(required = false) String code,
+            @RequestParam(required = false) String state,
             @RequestParam(required = false) String error,
             @RequestParam(name = "error_description", required = false) String errorDescription
     ) {
+        String baseCallbackUrl = resolveBaseCallbackUrl(state);
         if (error != null) {
             String msg = errorDescription != null && !errorDescription.isBlank() ? errorDescription : error;
-            String errorRedirect = String.format("%s/auth/callback?error=%s", frontendUrl, URLEncoder.encode(msg, StandardCharsets.UTF_8));
-            return new RedirectView(errorRedirect);
+            return new RedirectView(buildErrorRedirect(baseCallbackUrl, msg));
         }
         if (code == null || code.isBlank()) {
-            String errorRedirect = String.format("%s/auth/callback?error=%s", frontendUrl, URLEncoder.encode("Missing authorization code", StandardCharsets.UTF_8));
-            return new RedirectView(errorRedirect);
+            return new RedirectView(buildErrorRedirect(baseCallbackUrl, "Missing authorization code"));
         }
         try {
             AuthResponse response = authService.handleGoogleCallback(code);
-            String redirectTarget = String.format(
-                    "%s/auth/callback?access_token=%s&refresh_token=%s",
-                    frontendUrl,
-                    URLEncoder.encode(response.accessToken(), StandardCharsets.UTF_8),
-                    URLEncoder.encode(response.refreshToken(), StandardCharsets.UTF_8)
-            );
-            return new RedirectView(redirectTarget);
+            return new RedirectView(buildSuccessRedirect(baseCallbackUrl, response));
         } catch (Exception e) {
-            String errorRedirect = String.format(
-                    "%s/auth/callback?error=%s",
-                    frontendUrl,
-                    URLEncoder.encode(e.getMessage(), StandardCharsets.UTF_8)
-            );
-            return new RedirectView(errorRedirect);
+            return new RedirectView(buildErrorRedirect(baseCallbackUrl, e.getMessage()));
         }
     }
 
     @GetMapping("/oauth/github")
     @Operation(summary = "Initiate GitHub OAuth2 flow (redirects to GitHub)")
-    public RedirectView initiateGitHubOAuth() {
-        String state = UUID.randomUUID().toString();
+    public RedirectView initiateGitHubOAuth(@RequestParam(required = false) String platform) {
+        String statePrefix = "mobile".equalsIgnoreCase(platform) ? "mobile:" : "web:";
+        String state = statePrefix + UUID.randomUUID();
         String authorizeUrl = gitHubOAuth2Handler.buildAuthorizeUrl(state);
         return new RedirectView(authorizeUrl);
     }
 
     @GetMapping("/oauth/github/callback")
-    @Operation(summary = "GitHub OAuth2 callback (redirects to frontend with tokens)")
+    @Operation(summary = "GitHub OAuth2 callback (redirects to frontend or mobile app with tokens)")
     public RedirectView handleGitHubCallback(
             @RequestParam(required = false) String code,
+            @RequestParam(required = false) String state,
             @RequestParam(required = false) String error,
             @RequestParam(name = "error_description", required = false) String errorDescription
     ) {
+        String baseCallbackUrl = resolveBaseCallbackUrl(state);
         if (error != null) {
             String msg = errorDescription != null && !errorDescription.isBlank() ? errorDescription : error;
-            String errorRedirect = String.format("%s/auth/callback?error=%s", frontendUrl, URLEncoder.encode(msg, StandardCharsets.UTF_8));
-            return new RedirectView(errorRedirect);
+            return new RedirectView(buildErrorRedirect(baseCallbackUrl, msg));
         }
         if (code == null || code.isBlank()) {
-            String errorRedirect = String.format("%s/auth/callback?error=%s", frontendUrl, URLEncoder.encode("Missing authorization code", StandardCharsets.UTF_8));
-            return new RedirectView(errorRedirect);
+            return new RedirectView(buildErrorRedirect(baseCallbackUrl, "Missing authorization code"));
         }
         try {
             AuthResponse response = authService.handleGithubCallback(code);
-            String redirectTarget = String.format(
-                    "%s/auth/callback?access_token=%s&refresh_token=%s",
-                    frontendUrl,
-                    URLEncoder.encode(response.accessToken(), StandardCharsets.UTF_8),
-                    URLEncoder.encode(response.refreshToken(), StandardCharsets.UTF_8)
-            );
-            return new RedirectView(redirectTarget);
+            return new RedirectView(buildSuccessRedirect(baseCallbackUrl, response));
         } catch (Exception e) {
-            String errorRedirect = String.format(
-                    "%s/auth/callback?error=%s",
-                    frontendUrl,
-                    URLEncoder.encode(e.getMessage(), StandardCharsets.UTF_8)
-            );
-            return new RedirectView(errorRedirect);
+            return new RedirectView(buildErrorRedirect(baseCallbackUrl, e.getMessage()));
         }
     }
 }

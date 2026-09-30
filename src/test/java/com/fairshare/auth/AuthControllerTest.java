@@ -21,7 +21,9 @@ import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -78,5 +80,50 @@ class AuthControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(invalidJson))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void testGoogleCallbackMobileRedirect() throws Exception {
+        UserProfileResponse profile = new UserProfileResponse(
+                UUID.randomUUID(), "mobile@example.com", "Mobile User", null, null, "COMPLETED", Instant.now()
+        );
+        AuthResponse mockResponse = new AuthResponse("mobile.jwt.token", "mobile-refresh", profile);
+        when(authService.handleGoogleCallback("valid-code")).thenReturn(mockResponse);
+
+        mockMvc.perform(get("/api/v1/auth/oauth/google/callback")
+                        .param("code", "valid-code")
+                        .param("state", "mobile:" + UUID.randomUUID()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(header().string("Location", org.hamcrest.Matchers.startsWith("com.fairshare.app://auth/callback?access_token=mobile.jwt.token&refresh_token=mobile-refresh")));
+    }
+
+    @Test
+    void testGoogleCallbackWebRedirect() throws Exception {
+        UserProfileResponse profile = new UserProfileResponse(
+                UUID.randomUUID(), "web@example.com", "Web User", null, null, "COMPLETED", Instant.now()
+        );
+        AuthResponse mockResponse = new AuthResponse("web.jwt.token", "web-refresh", profile);
+        when(authService.handleGoogleCallback("valid-code")).thenReturn(mockResponse);
+
+        mockMvc.perform(get("/api/v1/auth/oauth/google/callback")
+                        .param("code", "valid-code")
+                        .param("state", "web:" + UUID.randomUUID()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(header().string("Location", org.hamcrest.Matchers.startsWith("http://localhost:5173/auth/callback?access_token=web.jwt.token&refresh_token=web-refresh")));
+    }
+
+    @Test
+    void testGitHubCallbackMobileRedirect() throws Exception {
+        UserProfileResponse profile = new UserProfileResponse(
+                UUID.randomUUID(), "gh-mobile@example.com", "GH Mobile User", null, null, "COMPLETED", Instant.now()
+        );
+        AuthResponse mockResponse = new AuthResponse("gh.jwt.token", "gh-refresh", profile);
+        when(authService.handleGithubCallback("gh-code")).thenReturn(mockResponse);
+
+        mockMvc.perform(get("/api/v1/auth/oauth/github/callback")
+                        .param("code", "gh-code")
+                        .param("state", "mobile:" + UUID.randomUUID()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(header().string("Location", org.hamcrest.Matchers.startsWith("com.fairshare.app://auth/callback?access_token=gh.jwt.token&refresh_token=gh-refresh")));
     }
 }
