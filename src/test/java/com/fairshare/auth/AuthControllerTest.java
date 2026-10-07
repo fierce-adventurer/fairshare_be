@@ -84,8 +84,8 @@ class AuthControllerTest {
 
     @Test
     void testGoogleCallbackMobileRedirect() throws Exception {
-        UserProfileResponse profile = new UserProfileResponse(
-                UUID.randomUUID(), "mobile@example.com", "Mobile User", null, null, "COMPLETED", Instant.now()
+        UserProfileResponse profile = UserProfileResponse.from(
+                new User(UUID.randomUUID(), "mobile@example.com", "hash", "Mobile User")
         );
         AuthResponse mockResponse = new AuthResponse("mobile.jwt.token", "mobile-refresh", profile);
         when(authService.handleGoogleCallback("valid-code")).thenReturn(mockResponse);
@@ -99,8 +99,8 @@ class AuthControllerTest {
 
     @Test
     void testGoogleCallbackWebRedirect() throws Exception {
-        UserProfileResponse profile = new UserProfileResponse(
-                UUID.randomUUID(), "web@example.com", "Web User", null, null, "COMPLETED", Instant.now()
+        UserProfileResponse profile = UserProfileResponse.from(
+                new User(UUID.randomUUID(), "web@example.com", "hash", "Web User")
         );
         AuthResponse mockResponse = new AuthResponse("web.jwt.token", "web-refresh", profile);
         when(authService.handleGoogleCallback("valid-code")).thenReturn(mockResponse);
@@ -114,8 +114,8 @@ class AuthControllerTest {
 
     @Test
     void testGitHubCallbackMobileRedirect() throws Exception {
-        UserProfileResponse profile = new UserProfileResponse(
-                UUID.randomUUID(), "gh-mobile@example.com", "GH Mobile User", null, null, "COMPLETED", Instant.now()
+        UserProfileResponse profile = UserProfileResponse.from(
+                new User(UUID.randomUUID(), "gh-mobile@example.com", "hash", "GH Mobile User")
         );
         AuthResponse mockResponse = new AuthResponse("gh.jwt.token", "gh-refresh", profile);
         when(authService.handleGithubCallback("gh-code")).thenReturn(mockResponse);
