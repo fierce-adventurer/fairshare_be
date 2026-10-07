@@ -80,7 +80,7 @@ jobs:
             IMAGE="${IMAGE_REPO}:${IMAGE_TAG}"
             CANDIDATE_CONTAINER="fairshare-api-candidate"
             LIVE_CONTAINER="fairshare-api"
-            ENV_FILE="/home/a/fairshare/.env"
+            ENV_FILE="/home/a/fairshare_be/.env"
 
             docker login ghcr.io -u "${{ secrets.GHCR_USERNAME }}" -p "${{ secrets.GHCR_PULL_TOKEN }}"
             docker pull "${IMAGE}"
