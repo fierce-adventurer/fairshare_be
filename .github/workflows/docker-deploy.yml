@@ -87,6 +87,16 @@ jobs:
 
             docker network create fairshare-net >/dev/null 2>&1 || true
 
+            if ! docker ps --format '{{.Names}}' | grep -q '^fairshare-redis$'; then
+              echo "Starting Redis container on fairshare-net..."
+              docker rm -f fairshare-redis >/dev/null 2>&1 || true
+              docker run -d \
+                --name fairshare-redis \
+                --network fairshare-net \
+                --restart unless-stopped \
+                redis:7-alpine
+            fi
+
             docker rm -f "${CANDIDATE_CONTAINER}" >/dev/null 2>&1 || true
             docker run -d \
               --name "${CANDIDATE_CONTAINER}" \
