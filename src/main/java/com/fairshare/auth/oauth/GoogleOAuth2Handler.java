@@ -90,11 +90,16 @@ public class GoogleOAuth2Handler {
                 throw new RuntimeException("Failed to obtain user info from Google");
             }
 
+            if (!Boolean.TRUE.equals(userInfo.get("email_verified"))) {
+                throw new IllegalStateException("Google did not return a verified email address.");
+            }
+
             return new GoogleUserInfo(
                     (String) userInfo.get("sub"),
                     (String) userInfo.get("email"),
                     (String) userInfo.get("name"),
-                    (String) userInfo.get("picture")
+                    (String) userInfo.get("picture"),
+                    true
             );
         } catch (Exception e) {
             log.error("Google OAuth token exchange failed", e);
@@ -102,5 +107,5 @@ public class GoogleOAuth2Handler {
         }
     }
 
-    public record GoogleUserInfo(String sub, String email, String name, String picture) {}
+    public record GoogleUserInfo(String sub, String email, String name, String picture, boolean emailVerified) {}
 }

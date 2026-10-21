@@ -34,6 +34,17 @@ spring:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
+  mail:
+    host: ${SMTP_HOST:}
+    port: ${SMTP_PORT:587}
+    username: ${SMTP_USERNAME:}
+    password: ${SMTP_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: ${SMTP_AUTH:true}
+          starttls:
+            enable: ${SMTP_STARTTLS:true}
 
 server:
   port: ${PORT:${SERVER_PORT:8080}}
@@ -54,10 +65,35 @@ app:
       client-id: ${GITHUB_CLIENT_ID:}
       client-secret: ${GITHUB_CLIENT_SECRET:}
       redirect-uri: ${GITHUB_REDIRECT_URI:http://localhost:8080/api/v1/auth/oauth/github/callback}
+    apple:
+      client-id: ${APPLE_CLIENT_ID:}
+      team-id: ${APPLE_TEAM_ID:}
+      key-id: ${APPLE_KEY_ID:}
+      private-key: ${APPLE_PRIVATE_KEY:}
+      client-secret: ${APPLE_CLIENT_SECRET:}
+      redirect-uri: ${APPLE_REDIRECT_URI:https://example.com/api/v1/auth/oauth/apple/callback}
   frontend-url: ${FRONTEND_URL:http://localhost:5173}
   native-auth-redirect-url: ${NATIVE_AUTH_REDIRECT_URL:com.fairshare.app://auth/callback}
+  mobile-redirect-uri: ${MOBILE_REDIRECT_URI:${NATIVE_AUTH_REDIRECT_URL:com.fairshare.app://auth/callback}}
+  public-api-url: ${PUBLIC_API_URL:http://localhost:8080}
   cors:
-    allowed-origins: ${CORS_ORIGINS:http://localhost:5173,http://127.0.0.1:5173}
+    allowed-origins: ${CORS_ORIGINS:http://localhost:5173,http://127.0.0.1:5173,https://localhost,capacitor://localhost,http://localhost}
+  auth:
+    otp:
+      expose-dev-code: ${OTP_EXPOSE_DEV_CODE:false}
+      ttl-seconds: ${OTP_TTL_SECONDS:300}
+      resend-cooldown-seconds: ${OTP_RESEND_COOLDOWN_SECONDS:30}
+      pepper: ${OTP_PEPPER:${JWT_SECRET:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}}
+  sms:
+    provider: ${SMS_PROVIDER:console}
+    twilio:
+      account-sid: ${TWILIO_ACCOUNT_SID:}
+      auth-token: ${TWILIO_AUTH_TOKEN:}
+      from-number: ${TWILIO_FROM_NUMBER:}
+  email:
+    delivery-enabled: ${EMAIL_DELIVERY_ENABLED:false}
+    expose-dev-link: ${EMAIL_EXPOSE_DEV_LINK:false}
+    from: ${EMAIL_FROM:no-reply@fairshare.app}
   whatsapp:
     access-token: ${WHATSAPP_ACCESS_TOKEN:}
     phone-number-id: ${WHATSAPP_PHONE_NUMBER_ID:}
@@ -68,6 +104,9 @@ app:
     graph-version: ${INSTAGRAM_GRAPH_VERSION:v25.0}
 
 management:
+  health:
+    mail:
+      enabled: ${EMAIL_DELIVERY_ENABLED:false}
   endpoints:
     web:
       exposure:

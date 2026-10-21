@@ -3,6 +3,7 @@ package com.fairshare.realtime.service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
@@ -19,6 +20,7 @@ public class EventBroadcaster {
     private final SimpMessagingTemplate messagingTemplate;
 
     @Autowired(required = false)
+    @Qualifier("redisTemplate")
     private RedisTemplate<String, String> redisTemplate;
 
     public EventBroadcaster(SimpMessagingTemplate messagingTemplate) {

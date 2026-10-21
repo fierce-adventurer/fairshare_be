@@ -5,6 +5,13 @@ spring:
       hibernate:
         format_sql: true
 
+app:
+  auth:
+    otp:
+      expose-dev-code: true
+  email:
+    expose-dev-link: true
+
 logging:
   level:
     com.fairshare: DEBUG

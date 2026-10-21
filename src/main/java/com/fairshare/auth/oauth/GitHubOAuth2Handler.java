@@ -47,7 +47,7 @@ public class GitHubOAuth2Handler {
         return UriComponentsBuilder.fromHttpUrl("https://github.com/login/oauth/authorize")
                 .queryParam("client_id", clientId)
                 .queryParam("redirect_uri", redirectUri)
-                .queryParam("scope", "read:user,user:email")
+                .queryParam("scope", "read:user user:email")
                 .queryParam("state", state)
                 .build().toUriString();
     }

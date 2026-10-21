@@ -2,6 +2,7 @@ package com.fairshare.user.model;
 
 import jakarta.persistence.*;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -22,6 +23,15 @@ public class User {
     @Column(nullable = false)
     private String name;
 
+    @Column(name = "first_name", length = 80)
+    private String firstName;
+
+    @Column(name = "last_name", length = 80)
+    private String lastName;
+
+    @Column(name = "date_of_birth")
+    private LocalDate dateOfBirth;
+
     private String initials;
 
     @Column(name = "avatar_url")
@@ -31,6 +41,18 @@ public class User {
 
     @Column(unique = true)
     private String phone;
+
+    @Column(name = "phone_verified_at")
+    private Instant phoneVerifiedAt;
+
+    @Column(name = "email_verified_at")
+    private Instant emailVerifiedAt;
+
+    @Column(name = "terms_accepted_at")
+    private Instant termsAcceptedAt;
+
+    @Column(name = "profile_reviewed_at")
+    private Instant profileReviewedAt;
 
     @Column(name = "instagram_handle", length = 128)
     private String instagramHandle;
@@ -79,6 +101,7 @@ public class User {
         this.email = email;
         this.passwordHash = passwordHash;
         this.name = name;
+        applyNameParts(name);
         this.color = "#6366F1";
         this.initials = computeInitials(name);
     }
@@ -89,6 +112,7 @@ public class User {
         if (createdAt == null) createdAt = Instant.now();
         if (updatedAt == null) updatedAt = createdAt;
         if (initials == null && name != null) initials = computeInitials(name);
+        if (firstName == null && name != null) applyNameParts(name);
     }
 
     @PreUpdate
@@ -106,6 +130,22 @@ public class User {
                 .collect(Collectors.joining());
     }
 
+    public void applyNameParts(String fullName) {
+        String normalized = fullName == null ? "" : fullName.trim().replaceAll("\\s+", " ");
+        if (normalized.isBlank()) return;
+        int separator = normalized.indexOf(' ');
+        this.firstName = separator < 0 ? normalized : normalized.substring(0, separator);
+        this.lastName = separator < 0 ? "" : normalized.substring(separator + 1);
+        this.name = normalized;
+    }
+
+    public void setNameParts(String firstName, String lastName) {
+        this.firstName = firstName == null ? "" : firstName.trim();
+        this.lastName = lastName == null ? "" : lastName.trim();
+        this.name = (this.firstName + " " + this.lastName).trim();
+        this.initials = computeInitials(this.name);
+    }
+
     // Getters and Setters
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
@@ -114,7 +154,13 @@ public class User {
     public String getPasswordHash() { return passwordHash; }
     public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
     public String getName() { return name; }
-    public void setName(String name) { this.name = name; }
+    public void setName(String name) { applyNameParts(name); }
+    public String getFirstName() { return firstName; }
+    public void setFirstName(String firstName) { this.firstName = firstName; }
+    public String getLastName() { return lastName; }
+    public void setLastName(String lastName) { this.lastName = lastName; }
+    public LocalDate getDateOfBirth() { return dateOfBirth; }
+    public void setDateOfBirth(LocalDate dateOfBirth) { this.dateOfBirth = dateOfBirth; }
     public String getInitials() { return initials; }
     public void setInitials(String initials) { this.initials = initials; }
     public String getAvatarUrl() { return avatarUrl; }
@@ -123,6 +169,14 @@ public class User {
     public void setColor(String color) { this.color = color; }
     public String getPhone() { return phone; }
     public void setPhone(String phone) { this.phone = phone; }
+    public Instant getPhoneVerifiedAt() { return phoneVerifiedAt; }
+    public void setPhoneVerifiedAt(Instant phoneVerifiedAt) { this.phoneVerifiedAt = phoneVerifiedAt; }
+    public Instant getEmailVerifiedAt() { return emailVerifiedAt; }
+    public void setEmailVerifiedAt(Instant emailVerifiedAt) { this.emailVerifiedAt = emailVerifiedAt; }
+    public Instant getTermsAcceptedAt() { return termsAcceptedAt; }
+    public void setTermsAcceptedAt(Instant termsAcceptedAt) { this.termsAcceptedAt = termsAcceptedAt; }
+    public Instant getProfileReviewedAt() { return profileReviewedAt; }
+    public void setProfileReviewedAt(Instant profileReviewedAt) { this.profileReviewedAt = profileReviewedAt; }
     public String getInstagramHandle() { return instagramHandle; }
     public void setInstagramHandle(String instagramHandle) { this.instagramHandle = instagramHandle; }
     public String getUpiId() { return upiId; }

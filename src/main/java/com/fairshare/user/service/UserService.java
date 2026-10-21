@@ -54,6 +54,7 @@ public class UserService {
             }
             user.setPhone(trimmedPhone.isBlank() ? null : trimmedPhone);
         }
+        if (request.dateOfBirth() != null) user.setDateOfBirth(request.dateOfBirth());
         if (request.avatarUrl() != null) {
             user.setAvatarUrl(request.avatarUrl().trim());
         }

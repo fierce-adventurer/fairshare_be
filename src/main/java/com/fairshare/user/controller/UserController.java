@@ -1,8 +1,10 @@
 package com.fairshare.user.controller;
 
+import com.fairshare.auth.service.EmailVerificationService;
 import com.fairshare.shared.dto.ApiResponse;
 import com.fairshare.shared.security.UserPrincipal;
 import com.fairshare.user.dto.OnboardingStepRequest;
+import com.fairshare.user.dto.CompleteOnboardingRequest;
 import com.fairshare.user.dto.UpdateProfileRequest;
 import com.fairshare.user.dto.UserProfileResponse;
 import com.fairshare.user.service.OnboardingService;
@@ -21,10 +23,12 @@ public class UserController {
 
     private final UserService userService;
     private final OnboardingService onboardingService;
+    private final EmailVerificationService emailVerificationService;
 
-    public UserController(UserService userService, OnboardingService onboardingService) {
+    public UserController(UserService userService, OnboardingService onboardingService, EmailVerificationService emailVerificationService) {
         this.userService = userService;
         this.onboardingService = onboardingService;
+        this.emailVerificationService = emailVerificationService;
     }
 
     @GetMapping("/me")
@@ -54,5 +58,21 @@ public class UserController {
     ) {
         UserProfileResponse updated = onboardingService.advanceStep(principal.id(), request.step());
         return ResponseEntity.ok(ApiResponse.ok(updated, "Onboarding step updated"));
+    }
+
+    @PostMapping("/me/onboarding/complete")
+    @Operation(summary = "Review a first-time profile, accept terms, and enter the app")
+    public ResponseEntity<ApiResponse<UserProfileResponse>> completeOnboarding(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody CompleteOnboardingRequest request
+    ) {
+        return ResponseEntity.ok(ApiResponse.ok(onboardingService.complete(principal.id(), request), "Profile review completed"));
+    }
+
+    @PostMapping("/me/email/verification")
+    @Operation(summary = "Send a new email verification link")
+    public ResponseEntity<ApiResponse<Void>> resendEmailVerification(@AuthenticationPrincipal UserPrincipal principal) {
+        emailVerificationService.issue(userService.findUserById(principal.id()));
+        return ResponseEntity.ok(ApiResponse.ok(null, "Verification email sent"));
     }
 }
