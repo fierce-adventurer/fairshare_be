@@ -3,6 +3,7 @@ package com.fairshare.user.service;
 import com.fairshare.shared.exception.BadRequestException;
 import com.fairshare.user.dto.AddContactRequest;
 import com.fairshare.user.dto.ContactResponse;
+import com.fairshare.user.dto.UpdateContactRequest;
 import com.fairshare.user.model.Contact;
 import com.fairshare.user.model.User;
 import com.fairshare.user.repository.ContactRepository;
@@ -35,16 +36,24 @@ public class ContactService {
 
     @Transactional
     public ContactResponse addContact(UUID ownerId, AddContactRequest request) {
-        String msisdn = request.msisdn().trim();
-        Optional<Contact> existing = contactRepository.findByOwnerIdAndMsisdn(ownerId, msisdn);
-        if (existing.isPresent()) {
-            throw new BadRequestException("Contact with phone number " + msisdn + " already exists.");
+        String msisdn = normalizeMsisdn(request.msisdn());
+        if (msisdn.length() < 11 || msisdn.length() > 16) {
+            throw new BadRequestException("Enter a valid phone number including its country code.");
         }
-
-        // Auto-resolve to registered user if phone matches
         UUID contactUserId = userRepository.findByPhone(msisdn)
                 .map(User::getId)
                 .orElse(null);
+        Optional<Contact> existing = contactRepository.findByOwnerIdAndMsisdn(ownerId, msisdn)
+                .or(() -> contactRepository.findByOwnerIdOrderByAddedAtDesc(ownerId).stream()
+                        .filter(contact -> normalizeMsisdn(contact.getMsisdn()).equals(msisdn))
+                        .findFirst());
+        if (existing.isPresent()) {
+            Contact contact = existing.get();
+            contact.setName(request.name().trim());
+            contact.setMsisdn(msisdn);
+            if (contactUserId != null) contact.setContactUserId(contactUserId);
+            return ContactResponse.from(contactRepository.save(contact));
+        }
 
         Contact contact = new Contact(ownerId, contactUserId, request.name().trim(), msisdn);
         Contact saved = contactRepository.save(contact);
@@ -52,7 +61,23 @@ public class ContactService {
     }
 
     @Transactional
+    public ContactResponse updateContact(UUID ownerId, UUID contactId, UpdateContactRequest request) {
+        Contact contact = contactRepository.findById(contactId)
+                .filter(entry -> entry.getOwnerId().equals(ownerId))
+                .orElseThrow(() -> new BadRequestException("Contact not found."));
+        if (request.name() != null && !request.name().isBlank()) contact.setName(request.name().trim());
+        if (request.favorite() != null) contact.setFavorite(request.favorite());
+        return ContactResponse.from(contactRepository.save(contact));
+    }
+
+    @Transactional
     public void deleteContact(UUID ownerId, UUID contactId) {
         contactRepository.deleteByIdAndOwnerId(contactId, ownerId);
+    }
+
+    public static String normalizeMsisdn(String raw) {
+        String digits = raw == null ? "" : raw.replaceAll("\\D", "");
+        if (digits.length() == 10) digits = "91" + digits;
+        return digits.isBlank() ? "" : "+" + digits;
     }
 }

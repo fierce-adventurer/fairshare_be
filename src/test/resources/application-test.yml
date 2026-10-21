@@ -29,3 +29,5 @@ app:
       client-id: test-github-client-id
       client-secret: test-github-client-secret
       redirect-uri: http://localhost:8080/api/v1/auth/oauth/github/callback
+  frontend-url: http://localhost:5173
+  native-auth-redirect-url: com.fairshare.app://auth/callback

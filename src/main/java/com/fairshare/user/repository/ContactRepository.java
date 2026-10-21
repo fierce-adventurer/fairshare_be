@@ -12,5 +12,6 @@ import java.util.UUID;
 public interface ContactRepository extends JpaRepository<Contact, UUID> {
     List<Contact> findByOwnerIdOrderByAddedAtDesc(UUID ownerId);
     Optional<Contact> findByOwnerIdAndMsisdn(UUID ownerId, String msisdn);
+    boolean existsByOwnerIdAndContactUserId(UUID ownerId, UUID contactUserId);
     void deleteByIdAndOwnerId(UUID id, UUID ownerId);
 }

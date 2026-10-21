@@ -48,4 +48,19 @@ public class EventBroadcaster {
             log.debug("Redis pub/sub broadcast skipped: {}", e.getMessage());
         }
     }
+
+    public void broadcastToUser(UUID userId, String eventType, Object payload) {
+        Map<String, Object> message = Map.of(
+                "eventType", eventType,
+                "userId", userId,
+                "payload", payload != null ? payload : Map.of(),
+                "timestamp", Instant.now().toString()
+        );
+        String destination = "/topic/user/" + userId;
+        try {
+            messagingTemplate.convertAndSend(destination, message);
+        } catch (Exception e) {
+            log.warn("Failed to broadcast WebSocket message to {}: {}", destination, e.getMessage());
+        }
+    }
 }

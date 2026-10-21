@@ -11,7 +11,9 @@ public record ContactResponse(
         String name,
         String msisdn,
         boolean isRegisteredUser,
-        Instant addedAt
+        boolean favorite,
+        Instant addedAt,
+        Instant updatedAt
 ) {
     public static ContactResponse from(Contact contact) {
         return new ContactResponse(
@@ -21,7 +23,9 @@ public record ContactResponse(
                 contact.getName(),
                 contact.getMsisdn(),
                 contact.getContactUserId() != null,
-                contact.getAddedAt()
+                contact.isFavorite(),
+                contact.getAddedAt(),
+                contact.getUpdatedAt()
         );
     }
 }

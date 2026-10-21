@@ -32,6 +32,24 @@ public class User {
     @Column(unique = true)
     private String phone;
 
+    @Column(name = "instagram_handle", length = 128)
+    private String instagramHandle;
+
+    @Column(name = "upi_id", length = 128)
+    private String upiId;
+
+    @Column(name = "bank_account_name", length = 120)
+    private String bankAccountName;
+
+    @Column(name = "bank_account_number", length = 64)
+    private String bankAccountNumber;
+
+    @Column(name = "bank_ifsc", length = 32)
+    private String bankIfsc;
+
+    @Column(name = "payment_qr_data", columnDefinition = "TEXT")
+    private String paymentQrData;
+
     @Column(name = "default_currency", nullable = false)
     private String defaultCurrency = "INR";
 
@@ -105,6 +123,18 @@ public class User {
     public void setColor(String color) { this.color = color; }
     public String getPhone() { return phone; }
     public void setPhone(String phone) { this.phone = phone; }
+    public String getInstagramHandle() { return instagramHandle; }
+    public void setInstagramHandle(String instagramHandle) { this.instagramHandle = instagramHandle; }
+    public String getUpiId() { return upiId; }
+    public void setUpiId(String upiId) { this.upiId = upiId; }
+    public String getBankAccountName() { return bankAccountName; }
+    public void setBankAccountName(String bankAccountName) { this.bankAccountName = bankAccountName; }
+    public String getBankAccountNumber() { return bankAccountNumber; }
+    public void setBankAccountNumber(String bankAccountNumber) { this.bankAccountNumber = bankAccountNumber; }
+    public String getBankIfsc() { return bankIfsc; }
+    public void setBankIfsc(String bankIfsc) { this.bankIfsc = bankIfsc; }
+    public String getPaymentQrData() { return paymentQrData; }
+    public void setPaymentQrData(String paymentQrData) { this.paymentQrData = paymentQrData; }
     public String getDefaultCurrency() { return defaultCurrency; }
     public void setDefaultCurrency(String defaultCurrency) { this.defaultCurrency = defaultCurrency; }
     public String getLanguage() { return language; }

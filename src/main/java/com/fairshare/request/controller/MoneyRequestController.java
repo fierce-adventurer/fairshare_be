@@ -9,9 +9,12 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.CacheControl;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.UUID;
@@ -55,6 +58,40 @@ public class MoneyRequestController {
     ) {
         MoneyRequestResponse response = requestService.settleRequest(principal.id(), id);
         return ResponseEntity.ok(ApiResponse.ok(response, "Money request settled"));
+    }
+
+    @PostMapping(path = "/{id}/settlement-proof", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Submit a transaction ID and payment screenshot as the registered payer")
+    public ResponseEntity<ApiResponse<MoneyRequestResponse>> submitSettlementProof(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable UUID id,
+            @RequestParam String transactionId,
+            @RequestPart("proof") MultipartFile proof
+    ) {
+        return ResponseEntity.ok(ApiResponse.ok(requestService.submitSettlementProof(principal.id(), id, transactionId, proof), "Payment proof submitted for review"));
+    }
+
+    @GetMapping("/{id}/settlement-proof")
+    @Operation(summary = "View payment proof as the payer or requester")
+    public ResponseEntity<byte[]> settlementProof(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable UUID id
+    ) {
+        MoneyRequestService.SettlementProof proof = requestService.settlementProof(principal.id(), id);
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noStore())
+                .contentType(MediaType.parseMediaType(proof.mimeType()))
+                .contentLength(proof.data().length)
+                .body(proof.data());
+    }
+
+    @PutMapping("/{id}/verify-settlement")
+    @Operation(summary = "Verify submitted payment proof and settle the request")
+    public ResponseEntity<ApiResponse<MoneyRequestResponse>> verifySettlement(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable UUID id
+    ) {
+        return ResponseEntity.ok(ApiResponse.ok(requestService.verifySettlement(principal.id(), id), "Payment verified and request settled"));
     }
 
     @PutMapping("/{id}/cancel")

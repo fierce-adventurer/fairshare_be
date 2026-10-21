@@ -55,8 +55,17 @@ app:
       client-secret: ${GITHUB_CLIENT_SECRET:}
       redirect-uri: ${GITHUB_REDIRECT_URI:http://localhost:8080/api/v1/auth/oauth/github/callback}
   frontend-url: ${FRONTEND_URL:http://localhost:5173}
+  native-auth-redirect-url: ${NATIVE_AUTH_REDIRECT_URL:com.fairshare.app://auth/callback}
   cors:
     allowed-origins: ${CORS_ORIGINS:http://localhost:5173,http://127.0.0.1:5173}
+  whatsapp:
+    access-token: ${WHATSAPP_ACCESS_TOKEN:}
+    phone-number-id: ${WHATSAPP_PHONE_NUMBER_ID:}
+    graph-version: ${WHATSAPP_GRAPH_VERSION:v21.0}
+  instagram:
+    access-token: ${INSTAGRAM_ACCESS_TOKEN:}
+    account-id: ${INSTAGRAM_ACCOUNT_ID:}
+    graph-version: ${INSTAGRAM_GRAPH_VERSION:v25.0}
 
 management:
   endpoints:

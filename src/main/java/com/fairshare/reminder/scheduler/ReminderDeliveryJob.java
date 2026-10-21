@@ -1,0 +1,3 @@
+package com.fairshare.reminder.scheduler;
+import com.fairshare.reminder.service.ReminderService;import org.slf4j.*;import org.springframework.scheduling.annotation.Scheduled;import org.springframework.stereotype.Component;
+@Component public class ReminderDeliveryJob{private static final Logger log=LoggerFactory.getLogger(ReminderDeliveryJob.class);private final ReminderService service;public ReminderDeliveryJob(ReminderService service){this.service=service;}@Scheduled(cron="0 */15 * * * *")public void deliver(){int count=service.deliverDue();if(count>0)log.info("Processed {} due payment reminders",count);}}

@@ -4,12 +4,20 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
+import java.util.Set;
 import java.util.UUID;
 
 public record CreateMoneyRequestRequest(
         UUID groupId,
-        @NotNull(message = "Recipient (toUserId) is required")
         UUID toUserId,
+        UUID contactId,
+        String payerName,
+        String payerMsisdn,
+        UUID expenseId,
+        Integer reminderIntervalDays,
+        Set<String> reminderChannels,
+        String payerInstagramId,
+        String paymentMode,
         String currency,
         @Min(value = 1, message = "Amount must be at least 1 minor unit")
         long amountMinor,

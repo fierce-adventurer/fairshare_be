@@ -1,0 +1,9 @@
+package com.fairshare.reminder.controller;
+import com.fairshare.reminder.dto.*;import com.fairshare.reminder.service.ReminderService;import com.fairshare.shared.dto.ApiResponse;import com.fairshare.shared.security.UserPrincipal;import jakarta.validation.Valid;import org.springframework.http.*;import org.springframework.security.core.annotation.AuthenticationPrincipal;import org.springframework.web.bind.annotation.*;import java.util.*;
+@RestController @RequestMapping("/api/v1/reminders")
+public class ReminderController{private final ReminderService service;public ReminderController(ReminderService service){this.service=service;}
+ @GetMapping public ResponseEntity<ApiResponse<List<ReminderResponse>>> list(@AuthenticationPrincipal UserPrincipal p,@RequestParam(required=false)String sourceType,@RequestParam(required=false)UUID sourceId){return ResponseEntity.ok(ApiResponse.ok(service.list(p.id(),sourceType,sourceId)));}
+ @PostMapping public ResponseEntity<ApiResponse<ReminderResponse>> create(@AuthenticationPrincipal UserPrincipal p,@Valid @RequestBody CreateReminderRequest r){return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(service.create(p.id(),r)));}
+ @PutMapping("/{id}/settle") public ResponseEntity<ApiResponse<ReminderResponse>> settle(@AuthenticationPrincipal UserPrincipal p,@PathVariable UUID id){return ResponseEntity.ok(ApiResponse.ok(service.changeStatus(p.id(),id,"settled")));}
+ @PutMapping("/{id}/pause") public ResponseEntity<ApiResponse<ReminderResponse>> pause(@AuthenticationPrincipal UserPrincipal p,@PathVariable UUID id){return ResponseEntity.ok(ApiResponse.ok(service.changeStatus(p.id(),id,"paused")));}
+ @PostMapping("/{id}/send-now") public ResponseEntity<ApiResponse<ReminderResponse>> sendNow(@AuthenticationPrincipal UserPrincipal p,@PathVariable UUID id){return ResponseEntity.ok(ApiResponse.ok(service.sendNow(p.id(),id)));}}

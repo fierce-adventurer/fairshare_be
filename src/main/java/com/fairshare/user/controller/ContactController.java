@@ -4,6 +4,7 @@ import com.fairshare.shared.dto.ApiResponse;
 import com.fairshare.shared.security.UserPrincipal;
 import com.fairshare.user.dto.AddContactRequest;
 import com.fairshare.user.dto.ContactResponse;
+import com.fairshare.user.dto.UpdateContactRequest;
 import com.fairshare.user.service.ContactService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -55,5 +56,15 @@ public class ContactController {
     ) {
         contactService.deleteContact(principal.id(), id);
         return ResponseEntity.ok(ApiResponse.ok(null, "Contact removed"));
+    }
+
+    @PatchMapping("/{id}")
+    @Operation(summary = "Update a saved contact or mark it as a favourite")
+    public ResponseEntity<ApiResponse<ContactResponse>> updateContact(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable UUID id,
+            @RequestBody UpdateContactRequest request
+    ) {
+        return ResponseEntity.ok(ApiResponse.ok(contactService.updateContact(principal.id(), id, request)));
     }
 }

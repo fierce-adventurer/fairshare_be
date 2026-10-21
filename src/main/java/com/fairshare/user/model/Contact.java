@@ -25,8 +25,14 @@ public class Contact {
     @Column(nullable = false, length = 20)
     private String msisdn;
 
+    @Column(nullable = false)
+    private boolean favorite = false;
+
     @Column(name = "added_at", nullable = false, updatable = false)
     private Instant addedAt;
+
+    @Column(name = "updated_at", nullable = false)
+    private Instant updatedAt;
 
     public Contact() {
     }
@@ -38,13 +44,18 @@ public class Contact {
         this.name = name;
         this.msisdn = msisdn;
         this.addedAt = Instant.now();
+        this.updatedAt = this.addedAt;
     }
 
     @PrePersist
     public void prePersist() {
         if (id == null) id = UUID.randomUUID();
         if (addedAt == null) addedAt = Instant.now();
+        if (updatedAt == null) updatedAt = addedAt;
     }
+
+    @PreUpdate
+    public void preUpdate() { updatedAt = Instant.now(); }
 
     // Getters and Setters
     public UUID getId() { return id; }
@@ -59,4 +70,8 @@ public class Contact {
     public void setMsisdn(String msisdn) { this.msisdn = msisdn; }
     public Instant getAddedAt() { return addedAt; }
     public void setAddedAt(Instant addedAt) { this.addedAt = addedAt; }
+    public boolean isFavorite() { return favorite; }
+    public void setFavorite(boolean favorite) { this.favorite = favorite; }
+    public Instant getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(Instant updatedAt) { this.updatedAt = updatedAt; }
 }

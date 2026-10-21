@@ -35,19 +35,22 @@ public class AuthController {
     private final GitHubOAuth2Handler gitHubOAuth2Handler;
     private final OtpService otpService;
     private final String frontendUrl;
+    private final String nativeAuthRedirectUrl;
 
     public AuthController(
             AuthService authService,
             GoogleOAuth2Handler googleOAuth2Handler,
             GitHubOAuth2Handler gitHubOAuth2Handler,
             OtpService otpService,
-            @Value("${app.frontend-url:http://localhost:5173}") String frontendUrl
+            @Value("${app.frontend-url:http://localhost:5173}") String frontendUrl,
+            @Value("${app.native-auth-redirect-url:com.fairshare.app://auth/callback}") String nativeAuthRedirectUrl
     ) {
         this.authService = authService;
         this.googleOAuth2Handler = googleOAuth2Handler;
         this.gitHubOAuth2Handler = gitHubOAuth2Handler;
         this.otpService = otpService;
         this.frontendUrl = frontendUrl;
+        this.nativeAuthRedirectUrl = nativeAuthRedirectUrl;
     }
 
     @PostMapping("/otp/send")
@@ -100,61 +103,83 @@ public class AuthController {
 
     @GetMapping("/oauth/google")
     @Operation(summary = "Initiate Google OAuth2 flow (redirects to Google)")
-    public RedirectView initiateGoogleOAuth() {
-        String state = UUID.randomUUID().toString();
+    public RedirectView initiateGoogleOAuth(@RequestParam(defaultValue = "web") String client) {
+        String state = buildOAuthState(client);
         String authorizeUrl = googleOAuth2Handler.buildAuthorizeUrl(state);
         return new RedirectView(authorizeUrl);
     }
 
     @GetMapping("/oauth/google/callback")
     @Operation(summary = "Google OAuth2 callback (redirects to frontend with tokens)")
-    public RedirectView handleGoogleCallback(@RequestParam String code) {
+    public RedirectView handleGoogleCallback(
+            @RequestParam String code,
+            @RequestParam(required = false) String state
+    ) {
         try {
             AuthResponse response = authService.handleGoogleCallback(code);
-            String redirectTarget = String.format(
-                    "%s/auth/callback?access_token=%s&refresh_token=%s",
-                    frontendUrl,
-                    URLEncoder.encode(response.accessToken(), StandardCharsets.UTF_8),
-                    URLEncoder.encode(response.refreshToken(), StandardCharsets.UTF_8)
-            );
-            return new RedirectView(redirectTarget);
+            return new RedirectView(buildSuccessRedirect(response, state));
         } catch (Exception e) {
-            String errorRedirect = String.format(
-                    "%s/auth/callback?error=%s",
-                    frontendUrl,
-                    URLEncoder.encode(e.getMessage(), StandardCharsets.UTF_8)
-            );
-            return new RedirectView(errorRedirect);
+            return new RedirectView(buildErrorRedirect(e, state));
         }
     }
 
     @GetMapping("/oauth/github")
     @Operation(summary = "Initiate GitHub OAuth2 flow (redirects to GitHub)")
-    public RedirectView initiateGitHubOAuth() {
-        String state = UUID.randomUUID().toString();
+    public RedirectView initiateGitHubOAuth(@RequestParam(defaultValue = "web") String client) {
+        String state = buildOAuthState(client);
         String authorizeUrl = gitHubOAuth2Handler.buildAuthorizeUrl(state);
         return new RedirectView(authorizeUrl);
     }
 
     @GetMapping("/oauth/github/callback")
     @Operation(summary = "GitHub OAuth2 callback (redirects to frontend with tokens)")
-    public RedirectView handleGitHubCallback(@RequestParam String code) {
+    public RedirectView handleGitHubCallback(
+            @RequestParam String code,
+            @RequestParam(required = false) String state
+    ) {
         try {
             AuthResponse response = authService.handleGithubCallback(code);
-            String redirectTarget = String.format(
-                    "%s/auth/callback?access_token=%s&refresh_token=%s",
-                    frontendUrl,
-                    URLEncoder.encode(response.accessToken(), StandardCharsets.UTF_8),
-                    URLEncoder.encode(response.refreshToken(), StandardCharsets.UTF_8)
-            );
-            return new RedirectView(redirectTarget);
+            return new RedirectView(buildSuccessRedirect(response, state));
         } catch (Exception e) {
-            String errorRedirect = String.format(
-                    "%s/auth/callback?error=%s",
-                    frontendUrl,
-                    URLEncoder.encode(e.getMessage(), StandardCharsets.UTF_8)
-            );
-            return new RedirectView(errorRedirect);
+            return new RedirectView(buildErrorRedirect(e, state));
         }
+    }
+
+    private String buildOAuthState(String client) {
+        String target = "native".equalsIgnoreCase(client) ? "native" : "web";
+        return target + "." + UUID.randomUUID();
+    }
+
+    private boolean isNativeState(String state) {
+        return state != null && state.startsWith("native.");
+    }
+
+    private String callbackBase(String state) {
+        if (isNativeState(state)) {
+            return nativeAuthRedirectUrl;
+        }
+        return frontendUrl.replaceAll("/+$", "") + "/auth/callback";
+    }
+
+    private String buildSuccessRedirect(AuthResponse response, String state) {
+        String separator = isNativeState(state) ? "#" : "?";
+        return String.format(
+                "%s%saccess_token=%s&refresh_token=%s",
+                callbackBase(state),
+                separator,
+                URLEncoder.encode(response.accessToken(), StandardCharsets.UTF_8),
+                URLEncoder.encode(response.refreshToken(), StandardCharsets.UTF_8)
+        );
+    }
+
+    private String buildErrorRedirect(Exception exception, String state) {
+        String separator = isNativeState(state) ? "#" : "?";
+        String message = exception.getMessage() == null ? "Authentication failed" : exception.getMessage();
+        return String.format(
+                "%s%serror=%s",
+                callbackBase(state),
+                separator,
+                URLEncoder.encode(message, StandardCharsets.UTF_8)
+        );
     }
 }
