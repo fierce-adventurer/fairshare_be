@@ -34,7 +34,12 @@ public class GoogleOAuth2Handler {
         this.restTemplate = new RestTemplate();
     }
 
+    public boolean isConfigured() {
+        return !clientId.isBlank() && !clientSecret.isBlank() && !redirectUri.isBlank();
+    }
+
     public String buildAuthorizeUrl(String state) {
+        if (!isConfigured()) throw new IllegalStateException("Sign in with Google is not configured on the backend.");
         return UriComponentsBuilder.fromHttpUrl("https://accounts.google.com/o/oauth2/v2/auth")
                 .queryParam("client_id", clientId)
                 .queryParam("redirect_uri", redirectUri)

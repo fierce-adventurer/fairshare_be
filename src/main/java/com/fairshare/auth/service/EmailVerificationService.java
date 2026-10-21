@@ -64,13 +64,20 @@ public class EmailVerificationService {
         String link = publicApiUrl + "/api/v1/auth/email/verify?token=" + rawToken;
 
         if (deliveryEnabled) {
-            if (mailSender == null) throw new IllegalStateException("Email delivery is enabled but no mail sender is configured.");
-            SimpleMailMessage message = new SimpleMailMessage();
-            message.setFrom(fromAddress);
-            message.setTo(user.getEmail());
-            message.setSubject("Verify your Fairshare email");
-            message.setText("Welcome to Fairshare. Verify your email within 24 hours:\n\n" + link + "\n\nIf you did not create this account, ignore this message.");
-            mailSender.send(message);
+            if (mailSender == null) {
+                log.error("Email verification delivery is enabled but no mail sender is configured for user {}", user.getId());
+            } else {
+                try {
+                    SimpleMailMessage message = new SimpleMailMessage();
+                    message.setFrom(fromAddress);
+                    message.setTo(user.getEmail());
+                    message.setSubject("Verify your Fairshare email");
+                    message.setText("Welcome to Fairshare. Verify your email within 24 hours:\n\n" + link + "\n\nIf you did not create this account, ignore this message.");
+                    mailSender.send(message);
+                } catch (RuntimeException deliveryFailure) {
+                    log.error("Email verification delivery failed for user {}; the account remains usable and the message can be resent", user.getId(), deliveryFailure);
+                }
+            }
         } else {
             log.info("Development email verification prepared for user {}", user.getId());
         }

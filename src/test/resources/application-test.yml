@@ -39,6 +39,8 @@ app:
   auth:
     otp:
       expose-dev-code: true
+      ttl-seconds: 300
+      proof-ttl-seconds: 1800
       resend-cooldown-seconds: 0
   email:
     delivery-enabled: false

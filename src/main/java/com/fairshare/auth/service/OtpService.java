@@ -30,6 +30,7 @@ public class OtpService {
     private final SmsDeliveryService smsDeliveryService;
     private final boolean exposeDevCode;
     private final Duration otpTtl;
+    private final Duration proofTtl;
     private final Duration cooldown;
     private final String pepper;
     private final SecureRandom secureRandom = new SecureRandom();
@@ -42,13 +43,15 @@ public class OtpService {
             SmsDeliveryService smsDeliveryService,
             @Value("${app.auth.otp.expose-dev-code:false}") boolean exposeDevCode,
             @Value("${app.auth.otp.ttl-seconds:300}") long ttlSeconds,
+            @Value("${app.auth.otp.proof-ttl-seconds:1800}") long proofTtlSeconds,
             @Value("${app.auth.otp.resend-cooldown-seconds:30}") long cooldownSeconds,
             @Value("${app.auth.otp.pepper:${app.jwt.secret}}") String pepper
     ) {
         this.redisTemplate = redisProvider.getIfAvailable();
         this.smsDeliveryService = smsDeliveryService;
         this.exposeDevCode = exposeDevCode;
-        this.otpTtl = Duration.ofSeconds(ttlSeconds);
+        this.otpTtl = Duration.ofSeconds(Math.max(300, ttlSeconds));
+        this.proofTtl = Duration.ofSeconds(Math.max(300, proofTtlSeconds));
         this.cooldown = Duration.ofSeconds(cooldownSeconds);
         this.pepper = pepper;
     }
@@ -100,7 +103,7 @@ public class OtpService {
 
         deleteChallenge(key);
         String proofToken = UUID.randomUUID().toString();
-        storeProof(proofToken, new Proof(phone, purpose, Instant.now().plus(Duration.ofMinutes(15))));
+        storeProof(proofToken, new Proof(phone, purpose, Instant.now().plus(proofTtl)));
         return new OtpVerification(phone, proofToken);
     }
 
@@ -181,9 +184,14 @@ public class OtpService {
 
     private void storeProof(String token, Proof proof) {
         String key = PROOF_PREFIX + token;
+        long seconds = Math.max(1, Duration.between(Instant.now(), proof.expiresAt()).toSeconds());
         try {
             if (redisTemplate != null) {
-                redisTemplate.opsForValue().set(key, proof.purpose().name() + "|" + proof.phone(), Duration.ofMinutes(15));
+                redisTemplate.opsForValue().set(
+                        key,
+                        proof.purpose().name() + "|" + proof.phone() + "|" + proof.expiresAt().toEpochMilli(),
+                        Duration.ofSeconds(seconds)
+                );
                 return;
             }
         } catch (RuntimeException ignored) {}
@@ -197,8 +205,11 @@ public class OtpService {
                 String stored = redisTemplate.opsForValue().get(key);
                 redisTemplate.delete(key);
                 if (stored != null) {
-                    String[] parts = stored.split("\\|", 2);
-                    return new Proof(parts[1], OtpPurpose.valueOf(parts[0]), Instant.now().plusSeconds(1));
+                    String[] parts = stored.split("\\|", 3);
+                    Instant expiresAt = parts.length == 3
+                            ? Instant.ofEpochMilli(Long.parseLong(parts[2]))
+                            : Instant.now().plusSeconds(1);
+                    return new Proof(parts[1], OtpPurpose.valueOf(parts[0]), expiresAt);
                 }
             }
         } catch (RuntimeException ignored) {}

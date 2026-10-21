@@ -138,6 +138,30 @@ class AuthControllerTest {
     }
 
     @Test
+    void providerAvailabilityReflectsServerConfiguration() throws Exception {
+        when(googleOAuth2Handler.isConfigured()).thenReturn(true);
+        when(appleOAuth2Handler.isConfigured()).thenReturn(false);
+
+        mockMvc.perform(get("/api/v1/auth/providers"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.phone").value(true))
+                .andExpect(jsonPath("$.data.google").value(true))
+                .andExpect(jsonPath("$.data.apple").value(false));
+    }
+
+    @Test
+    void unavailableAppleProviderReturnsToLoginWithAnActionableError() throws Exception {
+        when(stateService.issue(null)).thenReturn("web:state");
+        when(stateService.consume("web:state")).thenReturn(OAuthStateService.OAuthClient.WEB);
+        when(appleOAuth2Handler.buildAuthorizeUrl("web:state"))
+                .thenThrow(new IllegalStateException("Sign in with Apple is not configured on the backend."));
+
+        mockMvc.perform(get("/api/v1/auth/oauth/apple"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("http://localhost:5173/auth/callback?error=Sign+in+with+Apple+is+not+configured+on+the+backend."));
+    }
+
+    @Test
     void invalidEmailLoginBodyIsRejected() throws Exception {
         mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)

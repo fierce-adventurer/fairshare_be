@@ -110,13 +110,22 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.ok(null, "Logged out successfully"));
     }
 
+    @GetMapping("/providers")
+    @Operation(summary = "Report authentication provider availability")
+    public ResponseEntity<ApiResponse<AuthProvidersResponse>> providers() {
+        return ResponseEntity.ok(ApiResponse.ok(new AuthProvidersResponse(
+                true,
+                googleOAuth2Handler.isConfigured(),
+                appleOAuth2Handler.isConfigured()
+        )));
+    }
+
     @GetMapping("/oauth/google")
     public RedirectView initiateGoogleOAuth(
             @RequestParam(required = false) String platform,
             @RequestParam(required = false) String client
     ) {
-        String state = stateService.issue(platform != null ? platform : client);
-        return new RedirectView(googleOAuth2Handler.buildAuthorizeUrl(state));
+        return initiateOAuth(platform != null ? platform : client, googleOAuth2Handler::buildAuthorizeUrl);
     }
 
     @GetMapping("/oauth/github")
@@ -124,8 +133,7 @@ public class AuthController {
             @RequestParam(required = false) String platform,
             @RequestParam(required = false) String client
     ) {
-        String state = stateService.issue(platform != null ? platform : client);
-        return new RedirectView(gitHubOAuth2Handler.buildAuthorizeUrl(state));
+        return initiateOAuth(platform != null ? platform : client, gitHubOAuth2Handler::buildAuthorizeUrl);
     }
 
     @GetMapping("/oauth/apple")
@@ -133,8 +141,7 @@ public class AuthController {
             @RequestParam(required = false) String platform,
             @RequestParam(required = false) String client
     ) {
-        String state = stateService.issue(platform != null ? platform : client);
-        return new RedirectView(appleOAuth2Handler.buildAuthorizeUrl(state));
+        return initiateOAuth(platform != null ? platform : client, appleOAuth2Handler::buildAuthorizeUrl);
     }
 
     @GetMapping("/oauth/google/callback")
@@ -196,6 +203,21 @@ public class AuthController {
         }
     }
 
+    private RedirectView initiateOAuth(String requestedClient, AuthAuthorize authorize) {
+        String state = stateService.issue(requestedClient);
+        try {
+            return new RedirectView(authorize.authorize(state));
+        } catch (Exception failure) {
+            OAuthStateService.OAuthClient client;
+            try {
+                client = stateService.consume(state);
+            } catch (Exception ignored) {
+                client = stateService.infer(state);
+            }
+            return new RedirectView(errorRedirect(client, message(failure)));
+        }
+    }
+
     private String successRedirect(OAuthStateService.OAuthClient client, AuthResponse response) {
         return callbackBase(client) + "?access_token=" + encode(response.accessToken()) + "&refresh_token=" + encode(response.refreshToken());
     }
@@ -213,4 +235,7 @@ public class AuthController {
 
     @FunctionalInterface
     private interface AuthExchange { AuthResponse exchange(); }
+
+    @FunctionalInterface
+    private interface AuthAuthorize { String authorize(String state); }
 }

@@ -82,6 +82,7 @@ app:
     otp:
       expose-dev-code: ${OTP_EXPOSE_DEV_CODE:false}
       ttl-seconds: ${OTP_TTL_SECONDS:300}
+      proof-ttl-seconds: ${OTP_PROOF_TTL_SECONDS:1800}
       resend-cooldown-seconds: ${OTP_RESEND_COOLDOWN_SECONDS:30}
       pepper: ${OTP_PEPPER:${JWT_SECRET:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}}
   sms:
